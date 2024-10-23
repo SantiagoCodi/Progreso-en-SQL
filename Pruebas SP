@@ -1,0 +1,170 @@
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPAgregarBanco]    Script Date: 23/10/2024 17:06:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPAgregarBanco]
+--Falta la id, pero configurando identity Specication puede automatizarse
+@NombreBanco char(50), @Listabcra numeric(5,0), @Entidad bit
+as
+insert into bancos(nombre_banco, lista_bcra_banco, entidad_banco)
+values
+(@NombreBanco, @Listabcra, @Entidad)
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPAgregarCuenta]    Script Date: 23/10/2024 17:06:36 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPAgregarCuenta]
+--Se asume que se agregan automatico el ID,la fecha y el estado de cuenta
+-- agregar auto la fecha: https://stackoverflow.com/questions/4888277/add-default-value-of-datetime-field-in-sql-server-to-a-timestamp 
+-- agregar auto los id: https://stackoverflow.com/questions/10991894/auto-increment-primary-key-in-sql-server-management-studio-2012 
+-- La BD actual no me lo permite por un error, pide eliminar toda las tablas
+-- Culumn properties --> Default value or binding = 1
+@NCuenta bigint, @TipoCuenta char(20), @Saldo decimal(15,2), @id_persona tinyint, @id_banco tinyint
+as
+insert into cuentas (numero_cuenta, tipo_cuenta, saldo,id_persona,id_banco)
+values
+(@NCuenta, @TipoCuenta, @Saldo, @id_persona, @id_banco)
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPAgregarPersona]    Script Date: 23/10/2024 17:06:45 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPAgregarPersona]
+@Nombre char(50), @Apellido char(50), @TipoDoc varchar(5), @Doc varchar(50)
+as
+--Se supone que Identify Specification funciona normalmente en id_persona
+insert into personas (nombre_persona, apellido_persona, tipo_documento_persona, documento_persona)
+values
+(@Nombre, @Apellido, @TipoDoc, @Doc);
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPCambiarEntidadPorNombreBanco]    Script Date: 23/10/2024 17:06:54 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPCambiarEntidadPorNombreBanco] @entidad bit, @NombreBanco char(50)
+as
+update bancos
+set entidad_banco = @entidad
+where nombre_banco = @NombreBanco
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPCambiarNombreConDoc]    Script Date: 23/10/2024 17:07:02 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPCambiarNombreConDoc] @Doc varchar(50), @NombreNuevo char(50)
+as
+update personas
+set nombre_persona = @NombreNuevo
+where documento_persona = @Doc;
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPCuentasActivas]    Script Date: 23/10/2024 17:07:11 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [dbo].[_SPCuentasActivas]
+as
+select COUNT(estado_cuenta) from cuentas
+where estado_cuenta = 1;
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPEliminarBanco]    Script Date: 23/10/2024 17:07:19 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPEliminarBanco] @bcra numeric(5,0)
+as
+delete from bancos 
+where @bcra = lista_bcra_banco;
+
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPEliminarPersonaPorDoc]    Script Date: 23/10/2024 17:07:28 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPEliminarPersonaPorDoc]
+@Doc varchar(50)
+as
+delete from personas
+where documento_persona = @Doc;
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPInformacionCliente]    Script Date: 23/10/2024 17:07:37 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPInformacionCliente] @NumeroCuenta bigint
+as
+--Traer toda la informarción de un cliente en base a su numero de cuenta
+select personas.nombre_persona, personas.apellido_persona, personas.documento_persona, cuentas.saldo,  cuentas.tipo_cuenta, cuentas.fecha_creacion_cuenta from cuentas
+inner join personas on cuentas.id_persona = personas.id_persona
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPListadoBancos]    Script Date: 23/10/2024 17:07:46 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPListadoBancos] 
+--Muestra nombres de los bancos, pero solo los que son entidades tipo banco 
+as
+select nombre_banco from bancos  
+where entidad_banco = 1;
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPRangoEdad]    Script Date: 23/10/2024 17:07:55 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER proc [dbo].[_SPRangoEdad]
+-- Calcular la edad de personas sin preguntar exactamente su edad, puede servir para
+-- Ofrecer promociones de tarjetas a Jovenes recién terminados sus estudios
+@Doc1 varchar(50), @Doc2 varchar(50)
+as
+select nombre_persona, apellido_persona from personas
+where documento_persona between @Doc1 and @Doc2;
+
+USE [prueba_banco]
+GO
+/****** Object:  StoredProcedure [dbo].[_SPRestarSaldo]    Script Date: 23/10/2024 17:08:04 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [dbo].[_SPRestarSaldo] @Diferencia decimal (15,2), @NumeroCuenta bigint
+as
+update cuentas
+set saldo = saldo-@Diferencia
+where @NumeroCuenta = numero_cuenta;
+
+
